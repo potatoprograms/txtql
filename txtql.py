@@ -24,10 +24,8 @@ def selectLine(tokens):
     file = tokens[3]
     with open(file) as f:
         lines = f.readlines()
-
     if len(tokens) < 4:
         return lines
-
     i = 4
     criteria = []
     while i <= len(tokens) - 2:
@@ -44,7 +42,6 @@ def selectLine(tokens):
         elif c[0] == "ending":
             l = [s.rstrip("\n").endswith(c[1]) for s in l]
         return l
-    print(criteria)
     stack = []
     lastConnector = ""
     for criterion in criteria:
