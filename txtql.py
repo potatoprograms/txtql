@@ -85,7 +85,7 @@ def parse(tokens):
     # parse conditions beginning after the filename
     i = from_idx + 2
     conditions = []
-    allowed = {"containing", "starting", "ending"}
+    allowed = {"containing", "starting", "ending", "length"}
     while i < len(tokens):
         keyword = tokens[i].lower()
         if keyword in ("and", "or"):
@@ -133,6 +133,8 @@ def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
             return line_cmp.startswith(v_cmp)
         if t == "ending":
             return line_cmp.rstrip("\n").endswith(v_cmp)
+        if t == "length":
+            return len(line_cmp.rstrip("\n")) == int(v_cmp)
         # shouldn't reach here due to parse validation
         return False
 
