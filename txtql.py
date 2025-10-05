@@ -90,7 +90,7 @@ def parse(tokens):
     i = from_idx + 2
     conditions = []
     negated = False
-    allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount"}
+    allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount", "unique", "duplicate"}
     count = None
     count_eq = None
     def is_integerable(s):
@@ -101,40 +101,59 @@ def parse(tokens):
             return False
     while i < len(tokens):
         keyword = tokens[i].lower()
+        i_offset = 1
 
         if keyword in ("and", "or"):
-            # stray connector (malformed). Skip it to be forgiving.
             i += 1
             continue
         if keyword == "not":
-            #acknowledge and continue
             negated = True
             i += 1
             continue
-        if i + 1 >= len(tokens):
-            raise ValueError(f"Missing value for condition '{tokens[i]}'")
-        value = tokens[i + 1]
-        if value in ("=", "<", ">", ">=", "<="):
-            count = int(tokens[i+2])
-            count_eq = value
-            if keyword != "length" and keyword != "wordcount":
-                value = tokens[i+3]
-            i_offset = 4
-        elif '"' not in value and is_integerable(value):
-            count = int(value)
-            count_eq = "="
-            if keyword != "length":
-                value = tokens[i+2]
-            i_offset = 3
+
+        if keyword in ("unique", "duplicate"):
+            value = None
+            count = None
+            count_eq = None
+            i_offset = 1
         else:
-            i_offset = 2
+            if i + 1 >= len(tokens):
+                raise ValueError(f"Missing value for condition '{tokens[i]}'")
+            value = tokens[i+1]
+
+            if value in ("=", "<", ">", ">=", "<="):
+                count = int(tokens[i+2])
+                count_eq = value
+                if keyword not in ("length", "wordcount"):
+                    value = tokens[i+3]
+                i_offset = 4
+            elif '"' not in value and value.isdigit():
+                count = int(value)
+                count_eq = "="
+                if keyword != "length":
+                    value = tokens[i+2]
+                i_offset = 3
+            else:
+                i_offset = 2
+
+        # check for connector
         connector = None
         if i + i_offset < len(tokens) and tokens[i + i_offset].lower() in ("and", "or"):
             connector = tokens[i + i_offset].lower()
             i_offset += 1
+
         if keyword not in allowed:
             raise ValueError(f"Unknown condition type '{keyword}'. Allowed: {', '.join(sorted(allowed))}")
-        conditions.append({"type": keyword, "value": value, "connector": connector, "negated": negated, "count":count, "count_eq":count_eq})
+
+        conditions.append({
+            "type": keyword,
+            "value": value,
+            "connector": connector,
+            "negated": negated,
+            "count": count,
+            "count_eq": count_eq
+        })
+
         i += i_offset
         negated = False
         count = None
@@ -153,15 +172,19 @@ def evaluate_select(parsed, case_sensitive=cs):
     except Exception as e:
         raise RuntimeError(f"Could not open file '{filename}': {e}")
 
-    def match(cond, line):
+    def match(cond, line, allLines):
         t = cond["type"].lower()
         v = cond["value"]
-        if not case_sensitive:
-            line_cmp = line.lower()
-            v_cmp = v.lower()
+        if t not in ("unique", "duplicate"):
+            if not case_sensitive:
+                line_cmp = line.lower()
+                v_cmp = v.lower()
+            else:
+                line_cmp = line
+                v_cmp = v
         else:
             line_cmp = line
-            v_cmp = v
+            v_cmp = None
         res = None
         ops = {
             "=": lambda a,b: a == b,
@@ -197,6 +220,10 @@ def evaluate_select(parsed, case_sensitive=cs):
                 res = len(line_cmp.rstrip("\n").split(" ")) == cond['count']
             else:
                 res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n").split(" ")), cond['count'])
+        elif t == "unique":
+            res = allLines.count(line.rstrip("\n")) == 1
+        elif t == "duplicate":
+            res = allLines.count(line.rstrip("\n")) > 1
         # shouldn't reach here due to parse validation
         else:
             return False
@@ -206,7 +233,7 @@ def evaluate_select(parsed, case_sensitive=cs):
     prev_connector = None  # connector that joined previous condition to this one
 
     for cond in parsed["conditions"]:
-        current = [match(cond, ln) for ln in lines]
+        current = [match(cond, ln, [ln.rstrip('\n') for ln in lines]) for ln in lines]
         if mask is None:
             # first condition => start the mask
             mask = current
