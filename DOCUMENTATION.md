@@ -23,6 +23,8 @@ length:
   all targets with the specified length
   length may be used with comparison operators such as length > 2
   if no operator is specified, = will be defaulted to
+hasword:
+  functions similarily to containing, except the entire string must be found surrounded on both sides by whitespace (or be at the end or beginning of the line
 
 LOGICAL CONNECTORS:
 not:
