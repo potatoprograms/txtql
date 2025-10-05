@@ -19,6 +19,7 @@ Notes:
 """
 
 CASE_SENSITIVE = False  # Set True for case-sensitive matching
+cs = CASE_SENSITIVE #runtime editable copy
 
 def tokenize(query: str):
     """
@@ -59,6 +60,7 @@ def tokenize(query: str):
     return tokens
 
 def parse(tokens):
+    global cs
     """
     Parse tokens into a small AST (dict):
       { "command": "select", "file": "<filename>", "conditions": [ {type, value, connector}, ... ] }
@@ -68,7 +70,9 @@ def parse(tokens):
         raise ValueError("Empty query")
     if tokens[0].lower() != "select":
         raise ValueError("Query must start with 'select'")
-
+    if tokens[-1].lower() == "casesensitive":
+        cs = True
+        del tokens[-1]
     # find "from"
     from_idx = None
     for i, t in enumerate(tokens):
@@ -137,7 +141,7 @@ def parse(tokens):
         count_eq = None
     return {"command": "select", "file": filename, "conditions": conditions}
 
-def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
+def evaluate_select(parsed, case_sensitive=cs):
     """
     Apply parsed conditions to the named file and return matching lines.
     Boolean evaluation is left-to-right using connectors stored on each condition (connector joins this condition to the next).
@@ -223,6 +227,7 @@ def run_interactive():
         "Type 'quit' or 'exit' to leave.\n"
     )
     print(banner)
+    global cs
     while True:
         try:
             q = input("Query> ").strip()
@@ -233,13 +238,13 @@ def run_interactive():
                 break
             toks = tokenize(q)
             parsed = parse(toks)
-            results = evaluate_select(parsed)
+            results = evaluate_select(parsed, cs)
             if results:
                 print("".join(results), end="")  # lines already contain newlines
             else:
                 print("(no matching lines)")
         except Exception as exc:
             print("Error:", exc)
-
+        cs = CASE_SENSITIVE
 if __name__ == "__main__":
     run_interactive()
