@@ -87,6 +87,13 @@ def parse(tokens):
     conditions = []
     negated = False
     allowed = {"containing", "starting", "ending", "length"}
+    count = None
+    def is_integerable(s):
+        try:
+            int(s)
+            return True
+        except ValueError:
+            return False
     while i < len(tokens):
         keyword = tokens[i].lower()
         if keyword in ("and", "or"):
@@ -101,14 +108,22 @@ def parse(tokens):
         if i + 1 >= len(tokens):
             raise ValueError(f"Missing value for condition '{tokens[i]}'")
         value = tokens[i + 1]
+        if '"' not in value and is_integerable(value):
+            count = int(value)
+            value = tokens[i+2]
+            i_offset = 3
+        else:
+            i_offset = 2
         connector = None
-        if i + 2 < len(tokens) and tokens[i + 2].lower() in ("and", "or"):
-            connector = tokens[i + 2].lower()
+        if i + i_offset < len(tokens) and tokens[i + i_offset].lower() in ("and", "or"):
+            connector = tokens[i + i_offset].lower()
+            i_offset += 1
         if keyword not in allowed:
             raise ValueError(f"Unknown condition type '{keyword}'. Allowed: {', '.join(sorted(allowed))}")
-        conditions.append({"type": keyword, "value": value, "connector": connector, "negated": negated})
-        i += 3 if connector else 2
+        conditions.append({"type": keyword, "value": value, "connector": connector, "negated": negated, "count":count})
+        i += i_offset
         negated = False
+        count = None
     return {"command": "select", "file": filename, "conditions": conditions}
 
 def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
@@ -117,6 +132,7 @@ def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
     Boolean evaluation is left-to-right using connectors stored on each condition (connector joins this condition to the next).
     """
     filename = parsed["file"]
+    print(parsed)
     try:
         with open(filename, "r", encoding="utf-8") as fh:
             lines = fh.readlines()
@@ -134,7 +150,11 @@ def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
             v_cmp = v
         res = None
         if t == "containing":
-            res = v_cmp in line_cmp
+            line_cnt = line_cmp.count(v_cmp)
+            if cond["count"] == None:
+                res = line_cnt > 0
+            else:
+                res = line_cnt == cond["count"]
         elif t == "starting":
             res = line_cmp.startswith(v_cmp)
         elif t == "ending":
