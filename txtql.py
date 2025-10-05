@@ -90,7 +90,7 @@ def parse(tokens):
     i = from_idx + 2
     conditions = []
     negated = False
-    allowed = {"containing", "starting", "ending", "length"}
+    allowed = {"containing", "starting", "ending", "length", "hasword"}
     count = None
     count_eq = None
     def is_integerable(s):
@@ -187,6 +187,8 @@ def evaluate_select(parsed, case_sensitive=cs):
                 res = len(line_cmp.rstrip("\n")) == cond["count"]
             else:
                 res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n")), cond["count"])
+        elif t == "hasword":
+            res = v_cmp in line_cmp.rstrip("\n").split(" ")
         # shouldn't reach here due to parse validation
         else:
             return False
