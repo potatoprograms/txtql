@@ -85,11 +85,17 @@ def parse(tokens):
     # parse conditions beginning after the filename
     i = from_idx + 2
     conditions = []
+    negated = False
     allowed = {"containing", "starting", "ending", "length"}
     while i < len(tokens):
         keyword = tokens[i].lower()
         if keyword in ("and", "or"):
             # stray connector (malformed). Skip it to be forgiving.
+            i += 1
+            continue
+        if keyword == "not":
+            #acknowledge and continue
+            negated = True
             i += 1
             continue
         if i + 1 >= len(tokens):
@@ -100,9 +106,9 @@ def parse(tokens):
             connector = tokens[i + 2].lower()
         if keyword not in allowed:
             raise ValueError(f"Unknown condition type '{keyword}'. Allowed: {', '.join(sorted(allowed))}")
-        conditions.append({"type": keyword, "value": value, "connector": connector})
+        conditions.append({"type": keyword, "value": value, "connector": connector, "negated": negated})
         i += 3 if connector else 2
-
+        negated = False
     return {"command": "select", "file": filename, "conditions": conditions}
 
 def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
@@ -126,17 +132,19 @@ def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
         else:
             line_cmp = line
             v_cmp = v
-
+        res = None
         if t == "containing":
-            return v_cmp in line_cmp
-        if t == "starting":
-            return line_cmp.startswith(v_cmp)
-        if t == "ending":
-            return line_cmp.rstrip("\n").endswith(v_cmp)
-        if t == "length":
-            return len(line_cmp.rstrip("\n")) == int(v_cmp)
+            res = v_cmp in line_cmp
+        elif t == "starting":
+            res = line_cmp.startswith(v_cmp)
+        elif t == "ending":
+            res = line_cmp.rstrip("\n").endswith(v_cmp)
+        elif t == "length":
+            res = len(line_cmp.rstrip("\n")) == int(v_cmp)
         # shouldn't reach here due to parse validation
-        return False
+        else:
+            return False
+        return res ^ cond["negated"]
 
     mask = None            # boolean list of same length as lines
     prev_connector = None  # connector that joined previous condition to this one
