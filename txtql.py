@@ -113,12 +113,14 @@ def parse(tokens):
         if value in ("=", "<", ">", ">=", "<="):
             count = int(tokens[i+2])
             count_eq = value
-            value = tokens[i+3]
+            if keyword != "length":
+                value = tokens[i+3]
             i_offset = 4
         elif '"' not in value and is_integerable(value):
             count = int(value)
             count_eq = "="
-            value = tokens[i+2]
+            if keyword != "length":
+                value = tokens[i+2]
             i_offset = 3
         else:
             i_offset = 2
@@ -157,26 +159,30 @@ def evaluate_select(parsed, case_sensitive=CASE_SENSITIVE):
             line_cmp = line
             v_cmp = v
         res = None
+        ops = {
+            "=": lambda a,b: a == b,
+            ">": lambda a,b: a > b,
+            "<": lambda a,b: a < b,
+            ">=": lambda a,b: a >= b,
+            "<=": lambda a,b: a <= b,
+            }
+
         if t == "containing":
             line_cnt = line_cmp.count(v_cmp)
             count_eq = cond["count_eq"]
             if cond["count"] == None:
                 res = line_cnt > 0
             else:
-                ops = {
-                    "=": lambda a,b: a == b,
-                    ">": lambda a,b: a > b,
-                    "<": lambda a,b: a < b,
-                    ">=": lambda a,b: a >= b,
-                    "<=": lambda a,b: a <= b,
-                    }
                 res = ops[count_eq](line_cnt, cond["count"])
         elif t == "starting":
             res = line_cmp.startswith(v_cmp)
         elif t == "ending":
             res = line_cmp.rstrip("\n").endswith(v_cmp)
         elif t == "length":
-            res = len(line_cmp.rstrip("\n")) == int(v_cmp)
+            if cond["count_eq"] == None:
+                res = len(line_cmp.rstrip("\n")) == cond["count"]
+            else:
+                res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n")), cond["count"])
         # shouldn't reach here due to parse validation
         else:
             return False
