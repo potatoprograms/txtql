@@ -25,6 +25,10 @@ length:
   if no operator is specified, = will be defaulted to
 hasword:
   functions similarily to containing, except the entire string must be found surrounded on both sides by whitespace (or be at the end or beginning of the line
+  may be used with comparison operators and quantity, similarily to containing
+wordcount:
+  all targets who have the specified number of words (words defined as a string of characters seperated by whitespace)
+  may be used with comparison operators.
 
 LOGICAL CONNECTORS:
 not:
