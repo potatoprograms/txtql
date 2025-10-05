@@ -90,7 +90,7 @@ def parse(tokens):
     i = from_idx + 2
     conditions = []
     negated = False
-    allowed = {"containing", "starting", "ending", "length", "hasword"}
+    allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount"}
     count = None
     count_eq = None
     def is_integerable(s):
@@ -117,7 +117,7 @@ def parse(tokens):
         if value in ("=", "<", ">", ">=", "<="):
             count = int(tokens[i+2])
             count_eq = value
-            if keyword != "length":
+            if keyword != "length" and keyword != "wordcount":
                 value = tokens[i+3]
             i_offset = 4
         elif '"' not in value and is_integerable(value):
@@ -192,6 +192,11 @@ def evaluate_select(parsed, case_sensitive=cs):
                 res = v_cmp in line_cmp.rstrip("\n").split(" ")
             else:
                 res = ops[cond["count_eq"]](len([word for word in line_cmp.rstrip("\n").split(" ") if word == v_cmp]), cond["count"])
+        elif t == "wordcount":
+            if cond["count_eq"] == None:
+                res = len(line_cmp.rstrip("\n").split(" ")) == cond['count']
+            else:
+                res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n").split(" ")), cond['count'])
         # shouldn't reach here due to parse validation
         else:
             return False
