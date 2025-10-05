@@ -188,7 +188,10 @@ def evaluate_select(parsed, case_sensitive=cs):
             else:
                 res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n")), cond["count"])
         elif t == "hasword":
-            res = v_cmp in line_cmp.rstrip("\n").split(" ")
+            if cond["count"] == None:
+                res = v_cmp in line_cmp.rstrip("\n").split(" ")
+            else:
+                res = ops[cond["count_eq"]](len([word for word in line_cmp.rstrip("\n").split(" ") if word == v_cmp]), cond["count"])
         # shouldn't reach here due to parse validation
         else:
             return False
