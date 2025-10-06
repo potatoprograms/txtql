@@ -29,7 +29,10 @@ hasword:
 wordcount:
   all targets who have the specified number of words (words defined as a string of characters seperated by whitespace)
   may be used with comparison operators.
-
+unqiue:
+  all targets that only appear once in the file
+duplicate:
+  all targets that apear more than once in the file
 LOGICAL CONNECTORS:
 not:
   negates the following condition such as not containing 'apple'
