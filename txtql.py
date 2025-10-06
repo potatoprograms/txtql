@@ -89,8 +89,10 @@ def parse(tokens):
     # parse conditions beginning after the filename
     i = from_idx + 2
     conditions = []
+    tweaks = []
     negated = False
-    allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount", "unique", "duplicate"}
+    allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount"}
+    allowedTweaks = {"unique", "duplicate", "reverse"}
     count = None
     count_eq = None
     def is_integerable(s):
@@ -101,6 +103,10 @@ def parse(tokens):
             return False
     while i < len(tokens):
         keyword = tokens[i].lower()
+        if keyword in allowedTweaks:
+            tweaks.append(keyword)
+            i += 1
+            continue
         i_offset = 1
 
         if keyword in ("and", "or"):
@@ -111,30 +117,24 @@ def parse(tokens):
             i += 1
             continue
 
-        if keyword in ("unique", "duplicate"):
-            value = None
-            count = None
-            count_eq = None
-            i_offset = 1
-        else:
-            if i + 1 >= len(tokens):
-                raise ValueError(f"Missing value for condition '{tokens[i]}'")
-            value = tokens[i+1]
+        if i + 1 >= len(tokens):
+            raise ValueError(f"Missing value for condition '{tokens[i]}'")
+        value = tokens[i+1]
 
-            if value in ("=", "<", ">", ">=", "<="):
-                count = int(tokens[i+2])
-                count_eq = value
-                if keyword not in ("length", "wordcount"):
-                    value = tokens[i+3]
-                i_offset = 4
-            elif '"' not in value and value.isdigit():
-                count = int(value)
-                count_eq = "="
-                if keyword != "length":
-                    value = tokens[i+2]
+        if value in ("=", "<", ">", ">=", "<="):
+            count = int(tokens[i+2])
+            count_eq = value
+            if keyword not in ("length", "wordcount"):
+                value = tokens[i+3]
+            i_offset = 4
+        elif '"' not in value and value.isdigit():
+            count = int(value)
+            count_eq = "="
+            if keyword != "length":
+                value = tokens[i+2]
                 i_offset = 3
-            else:
-                i_offset = 2
+        else:
+            i_offset = 2
 
         # check for connector
         connector = None
@@ -158,7 +158,7 @@ def parse(tokens):
         negated = False
         count = None
         count_eq = None
-    return {"command": "select", "file": filename, "conditions": conditions}
+    return {"command": "select", "file": filename, "conditions": conditions, "tweaks":tweaks}
 
 def evaluate_select(parsed, case_sensitive=cs):
     """
@@ -220,10 +220,6 @@ def evaluate_select(parsed, case_sensitive=cs):
                 res = len(line_cmp.rstrip("\n").split(" ")) == cond['count']
             else:
                 res = ops[cond["count_eq"]](len(line_cmp.rstrip("\n").split(" ")), cond['count'])
-        elif t == "unique":
-            res = allLines.count(line.rstrip("\n")) == 1
-        elif t == "duplicate":
-            res = allLines.count(line.rstrip("\n")) > 1
         # shouldn't reach here due to parse validation
         else:
             return False
@@ -250,10 +246,15 @@ def evaluate_select(parsed, case_sensitive=cs):
         prev_connector = cond.get("connector")
 
     # if there were no conditions, return all lines
-    if mask is None:
-        return lines
-
-    return [ln for ln, ok in zip(lines, mask) if ok]
+    res = [ln for ln, ok in zip(lines, mask) if ok] if mask else lines
+    for tweak in parsed['tweaks']:
+        if tweak == 'unique':
+            res = [ln for ln in res if lines.count(ln) == 1]
+        elif tweak == 'duplicate':
+            res = [ln for ln in res if lines.count(ln) > 1]
+        elif tweak == "reverse":
+            res.reverse()
+    return res
 
 def run_interactive():
     banner = (
