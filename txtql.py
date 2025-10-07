@@ -1,22 +1,4 @@
 #!/usr/bin/env python3
-"""
-Tiny SQL-ish text query tool (single-file).
-Syntax:
-  select line from <filename> [ <criteria> ... ]
-Criteria:
-  containing 'text'
-  starting 'text'
-  ending 'text'
-Connectors:
-  and, or
-
-Examples:
-  select line from data.txt containing 'error' and starting 'WARN'
-  select line from "my log.txt" containing 'timeout' or ending 'failed'
-Notes:
-  - Values with spaces must be quoted with single or double quotes.
-  - Matching is case-insensitive by default. Change CASE_SENSITIVE below if you want otherwise.
-"""
 
 CASE_SENSITIVE = False  # Set True for case-sensitive matching
 cs = CASE_SENSITIVE #runtime editable copy
@@ -92,7 +74,7 @@ def parse(tokens):
     tweaks = []
     negated = False
     allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount"}
-    allowedTweaks = {"unique", "duplicate", "reverse"}
+    allowedTweaks = {"unique", "duplicate", "reverse", "limit"}
     count = None
     count_eq = None
     def is_integerable(s):
@@ -104,6 +86,15 @@ def parse(tokens):
     while i < len(tokens):
         keyword = tokens[i].lower()
         if keyword in allowedTweaks:
+            if keyword == 'limit':
+                if i+1 < len(tokens):
+                    if is_integerable(tokens[i+1]):
+                        keyword = f"{keyword}_{tokens[i+1]}"
+                        i += 1
+                    else:
+                        raise ValueError("Limit count is not a number")
+                else:
+                    raise ValueError("Limit missing count.")
             tweaks.append(keyword)
             i += 1
             continue
@@ -254,6 +245,8 @@ def evaluate_select(parsed, case_sensitive=cs):
             res = [ln for ln in res if lines.count(ln) > 1]
         elif tweak == "reverse":
             res.reverse()
+        elif tweak.startswith("limit_"):
+            res = res[:int(tweak.split("_",1)[1])]
     return res
 
 def run_interactive():
