@@ -92,7 +92,8 @@ def parse(tokens):
         "nonsymbolic",
         "floating",
         "semifloating",
-        "nonfloating"
+        "nonfloating",
+        "capitalized"
         }
     count = None
     count_eq = None
@@ -172,6 +173,7 @@ def parse(tokens):
 
 
 alphabetical = list("qwertyuioplkjhgfdsazxcvbnm")
+upperalphabetical = list("QWERTYUIOPASDFGHJKLZXCVBNM")
 numeric = list("1234567890")
 symbolic = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', ']', '{', '}', ';', ':', "'", '"', '“', '”', ',', '.', '/', '?', '\\', '|', '<', '>', '`', '~']
 
@@ -300,6 +302,8 @@ def evaluate_select(parsed, case_sensitive=cs):
             res = [ln for ln in res if any(item in ln for item in numeric) and "." in ln]
         elif tweak == "nonfloating":
             res = [ln for ln in res if not all((item in numeric or item == ".") for item in ln) or "." not in ln]
+        elif tweak == "capitalized":
+            res = [ln for ln in res if ln.lstrip(" ")[0] in upperalphabetical]
 
     return res
 
