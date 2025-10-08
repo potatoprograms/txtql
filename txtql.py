@@ -285,7 +285,7 @@ def evaluate_select(parsed, case_sensitive=cs):
         elif tweak == "alphabetic":
             res = [ln for ln in res if all(item in alphabetical + [" "] for item in ln.lower())]
         elif tweak == "numeric":
-            res = [ln for ln in res if all(item in numeric + [" "] for item in ln)]
+            res = [ln for ln in res if all(item in numeric + [" ", "-"] for item in ln)]
         elif tweak == "symbolic":
             res = [ln for ln in res if all(item in symbolic + [" "] for item in ln)]
         elif tweak == "nonalphabetic":
@@ -295,7 +295,7 @@ def evaluate_select(parsed, case_sensitive=cs):
         elif tweak == "nonsymbolic":
             res = [ln for ln in res if not any(item in ln for item in symbolic)]
         elif tweak == "floating":
-            res = [ln for ln in res if all((item in numeric + [" "] or item == ".") for item in ln) and "." in ln]
+            res = [ln for ln in res if all((item in numeric + [" ", "-"] or item == ".") for item in ln) and "." in ln]
         elif tweak == "semifloating":
             res = [ln for ln in res if any(item in ln for item in numeric) and "." in ln]
         elif tweak == "nonfloating":
