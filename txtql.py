@@ -74,7 +74,26 @@ def parse(tokens):
     tweaks = []
     negated = False
     allowed = {"containing", "starting", "ending", "length", "hasword", "wordcount"}
-    allowedTweaks = {"unique", "duplicate", "reverse", "limit","offset"}
+    allowedTweaks = {"unique",
+        "duplicate",
+        "reverse",
+        "limit",
+        "offset",
+        "uppercase",
+        "lowercase",
+        "alphabetic",
+        "numeric",
+        "symbolic",
+        "semialphabetic",
+        "seminumeric",
+        "semisymbolic",
+        "nonalphabetic",
+        "nonnumeric",
+        "nonsymbolic",
+        "floating",
+        "semifloating",
+        "nonfloating"
+        }
     count = None
     count_eq = None
     def is_integerable(s):
@@ -150,6 +169,11 @@ def parse(tokens):
         count = None
         count_eq = None
     return {"command": "select", "file": filename, "conditions": conditions, "tweaks":tweaks}
+
+
+alphabetical = list("qwertyuioplkjhgfdsazxcvbnm")
+numeric = list("1234567890")
+symbolic = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', ']', '{', '}', ';', ':', "'", '"', '“', '”', ',', '.', '/', '?', '\\', '|', '<', '>', '`', '~']
 
 def evaluate_select(parsed, case_sensitive=cs):
     """
@@ -235,9 +259,8 @@ def evaluate_select(parsed, case_sensitive=cs):
                 mask = current
         # store connector that follows this condition (used to join to the next)
         prev_connector = cond.get("connector")
-
-    # if there were no conditions, return all lines
     res = [ln for ln, ok in zip(lines, mask) if ok] if mask else lines
+    res = [ln.rstrip('\n') for ln in res]
     for tweak in parsed['tweaks']:
         if tweak == 'unique':
             res = [ln for ln in res if lines.count(ln) == 1]
@@ -245,10 +268,39 @@ def evaluate_select(parsed, case_sensitive=cs):
             res = [ln for ln in res if lines.count(ln) > 1]
         elif tweak == "reverse":
             res.reverse()
+        elif tweak == "uppercase":
+            res = [ln.upper() for ln in res]
+        elif tweak == "lowercase":
+            res = [ln.lower() for ln in res]
         elif tweak.startswith("limit_"):
             res = res[:int(tweak.split("_",1)[1])]
         elif tweak.startswith("offset_"):
             res = res [int(tweak.split("_", 1)[1]):]
+        elif tweak == "semialphabetic":
+            res = [ln for ln in res if any(item in ln.lower() for item in alphabetical)]
+        elif tweak == "seminumeric":
+            res = [ln for ln in res if any(item in ln for item in numeric)]
+        elif tweak == "semisymbolic":
+            res = [ln for ln in res if any(item in ln for item in symbolic)]
+        elif tweak == "alphabetic":
+            res = [ln for ln in res if all(item in alphabetical + [" "] for item in ln.lower())]
+        elif tweak == "numeric":
+            res = [ln for ln in res if all(item in numeric + [" "] for item in ln)]
+        elif tweak == "symbolic":
+            res = [ln for ln in res if all(item in symbolic + [" "] for item in ln)]
+        elif tweak == "nonalphabetic":
+            res = [ln for ln in res if not any(item in ln.lower() for item in alphabetical)]
+        elif tweak == "nonnumeric":
+            res = [ln for ln in res if not any(item in ln for item in numeric)]
+        elif tweak == "nonsymbolic":
+            res = [ln for ln in res if not any(item in ln for item in symbolic)]
+        elif tweak == "floating":
+            res = [ln for ln in res if all((item in numeric + [" "] or item == ".") for item in ln) and "." in ln]
+        elif tweak == "semifloating":
+            res = [ln for ln in res if any(item in ln for item in numeric) and "." in ln]
+        elif tweak == "nonfloating":
+            res = [ln for ln in res if not all((item in numeric or item == ".") for item in ln) or "." not in ln]
+
     return res
 
 def run_interactive():
@@ -272,6 +324,7 @@ def run_interactive():
             toks = tokenize(q)
             parsed = parse(toks)
             results = evaluate_select(parsed, cs)
+            results = [f"{ln}\n" for ln in results]
             if results:
                 print("".join(results), end="")  # lines already contain newlines
             else:
